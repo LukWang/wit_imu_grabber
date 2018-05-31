@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="port1" default="/dev/rfcomm0"/>
+    <arg name="port2" default="/dev/rfcomm1"/>
+    <arg name="port3" default="/dev/rfcomm2"/>
+    <arg name="port4" default="/dev/rfcomm5"/>
+    <arg name="port5" default="/dev/rfcomm6"/>
+
+    <node pkg="wit_imu_grabber" name="imu_1" type="grabber_time_stricted.py" args="$(arg port1)" output="screen">
+        <param name="imu_name" type="string" value="imu_1"/>
+    </node>
+    
+    <node pkg="wit_imu_grabber" name="imu_2" type="grabber_time_stricted.py" args="$(arg port2)" output="screen">
+        <param name="imu_name" type="string" value="imu_2"/>
+    </node>
+    
+    <node pkg="wit_imu_grabber" name="imu_3" type="grabber_time_stricted.py" args="$(arg port3)" output="screen">
+        <param name="imu_name" type="string" value="imu_3"/>
+    </node>
+    
+    <node pkg="wit_imu_grabber" name="imu_4" type="grabber_time_stricted.py" args="$(arg port4)" output="screen">
+        <param name="imu_name" type="string" value="imu_4"/>
+    </node>
+    
+    <node pkg="wit_imu_grabber" name="imu_5" type="grabber_time_stricted.py" args="$(arg port5)" output="screen">
+        <param name="imu_name" type="string" value="imu_5"/>
+    </node>
+</launch>

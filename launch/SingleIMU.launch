@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="port1" default="/dev/rfcomm0"/>
+
+        <node pkg="wit_imu_grabber" name="imu_1" type="grabber.py" args="$(arg port1)" output="screen">
+        <param name="imu_name" type="string" value="imu_1"/>
+    </node>
+    
+    <node pkg="wit_imu_grabber" name="viz_acc" type="viz_acc"/>
+</launch>
