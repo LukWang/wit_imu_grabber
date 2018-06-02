@@ -10,6 +10,7 @@ from geometry_msgs.msg import Quaternion, Vector3, AccelStamped
 import tf
 from math import sqrt
 import numpy
+import os
 
 def hexShow(argv):  
     result = ''  
@@ -28,6 +29,22 @@ def NumtoHex(Num):
 
 class Imu_Grabber:
     def __init__(self, port_name):
+        
+
+        self.ref_mode = True
+        imu_name = rospy.get_name()
+        ref_file_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+        file_name = ref_file_dir + '/imu_ref' + imu_name + '.ref'
+        #print file_name
+        self.ori_ref = list()
+        with open(file_name) as f:
+            for line in f:
+                num_str = line.rstrip()
+                self.ori_ref.append(float(num_str))
+        #self.ori_ref[3] = -self.ori_ref[3]
+        #print self.ori_ref
+
+
         self.port = serial.Serial(port_name, 9600)
         self.firstRead = True
 
@@ -35,15 +52,17 @@ class Imu_Grabber:
         
         self.Acc = Vector3(0.0, 0.0, 0.0)
         self.Quat = Quaternion(0.0, 0.0, 0.0 ,1.0)
-        self.normQuat = Quaternion(0.0, 0.0, 0.0 ,1.0)
+        #self.normQuat = Quaternion(0.0, 0.0, 0.0 ,1.0)
+        self.refQuat = Quaternion(0.0, 0.0, 0.0 ,1.0)
         self.Gyro = Vector3(0.0, 0.0, 0.0)
         self.AccCart = Vector3(0.0, 0.0, 0.0)
 
         self.imuPub = rospy.Publisher('~imu_stream', Imu, queue_size=1)
-        self.accPub = rospy.Publisher('~proc_acc', AccelStamped, queue_size=1)
+        #self.accPub = rospy.Publisher('~proc_acc', AccelStamped, queue_size=1)
         self.imu_name = rospy.get_param('~imu_name')
 
         self.br = tf.TransformBroadcaster()
+
 
     def ReadFrame(self):
         start = time.clock()
@@ -151,7 +170,7 @@ class Imu_Grabber:
             ss = struct.pack('H', temp)
             qw, = struct.unpack('h' , ss)
             self.Quat.z = float(qw) / 32768.0
-
+            '''
             quatNorm = sqrt(self.Quat.x * self.Quat.x +
                             self.Quat.y * self.Quat.y +
                             self.Quat.z * self.Quat.z +
@@ -160,9 +179,19 @@ class Imu_Grabber:
             self.normQuat.y = self.Quat.y / quatNorm
             self.normQuat.z = self.Quat.z / quatNorm
             self.normQuat.w = self.Quat.w / quatNorm
+            '''
+            self.normQuat = self.Quat
+            quat_origin = [self.normQuat.x, self.normQuat.y, self.normQuat.z, self.normQuat.w]
+            if self.ref_mode:
+                ref_quat = tf.transformations.quaternion_multiply(
+                        tf.transformations.quaternion_conjugate(self.ori_ref),
+                        quat_origin)
+                self.refQuat = Quaternion(ref_quat[0], ref_quat[1], ref_quat[2], ref_quat[3])
+                quat_origin = ref_quat
+
 
             self.br.sendTransform((0, 0, 0),
-                             [self.normQuat.x, self.normQuat.y, self.normQuat.z, self.normQuat.w],
+                             quat_origin,
                              rospy.Time.now(),
                              self.imu_name,
                              "world")
@@ -173,18 +202,34 @@ class Imu_Grabber:
         #print 'Running time: ' ,end - start
 
     def eraseGravity(self):
-        q1 = [self.Quat.x, self.Quat.y, self.Quat.z, self.Quat.w]
-        q1 = list(q1)
+        if self.ref_mode:
+            q1 = [self.refQuat.x, self.refQuat.y, self.refQuat.z, self.refQuat.w]
+        else:
+            q1 = [self.Quat.x, self.Quat.y, self.Quat.z, self.Quat.w]
+
+        #q1 = list(q1)
         acc = [self.Acc.x, self.Acc.y, self.Acc.z]
         acc = numpy.array(acc, dtype=numpy.float64,copy=True)
         acc_scalar = sqrt(numpy.dot(acc, acc))
         unit_acc = acc/acc_scalar
         q2 = list(unit_acc)
         q2.append(0.0)
+        '''        
         acc_no_grav = tf.transformations.quaternion_multiply(
                 tf.transformations.quaternion_multiply(q1, q2),
                 tf.transformations.quaternion_conjugate(q1)
-                )[:3]
+                )
+
+        acc_no_grav = tf.transformations.quaternion_multiply(
+                tf.transformations.quaternion_multiply(self.ori_ref, acc_no_grav),
+                tf.transformations.quaternion_conjugate(self.ori_ref)
+                )[0:3]
+        '''
+
+        acc_no_grav = tf.transformations.quaternion_multiply(
+                tf.transformations.quaternion_multiply(q1, q2),
+                tf.transformations.quaternion_conjugate(q1)
+                )[0:3]
         acc_no_grav *= acc_scalar
         acc_no_grav -= [0.0, 0.0, 9.8]
         
@@ -208,7 +253,10 @@ class Imu_Grabber:
         imu_msg.header.stamp = self.frameTime
         #imu_msg.linear_acceleration = self.Acc
         imu_msg.linear_acceleration = self.AccCart
-        imu_msg.orientation = self.normQuat
+        if self.ref_mode:
+            imu_msg.orientation = self.refQuat
+        else:
+            imu_msg.orientation = self.Quat
         imu_msg.angular_velocity = self.Acc
 
         #print imu_msg
@@ -352,21 +400,23 @@ class Imu_Grabber:
 
 if __name__ == '__main__':
 
-
+    do_calib = False
     rospy.init_node('wit_grabber')
     if len(sys.argv) >=2:
-                port = sys.argv[1]
+        port = sys.argv[1]
     else:
         print "Port name required!"
         sys.exit()
+    if len(sys.argv) >=3:
+        do_calib = True
 
     imu_grabber = Imu_Grabber(port)
 
     #time.sleep(0.1)
     imu_grabber.setPassingFreq()
-    #imu_grabber.setPassingTerm()
+    imu_grabber.setPassingTerm()
 
-
+    #if do_calib:
     #imu_grabber.calibrateAcc()
     #imu_grabber.setZAxistoZero()
     
