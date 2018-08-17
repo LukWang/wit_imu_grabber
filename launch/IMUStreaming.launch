@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="port1" default="/dev/rfcomm0"/>
+    <arg name="port1" default="/dev/rfcomm5"/>
     <arg name="port2" default="/dev/rfcomm1"/>
     <arg name="port3" default="/dev/rfcomm2"/>
     <arg name="port4" default="/dev/rfcomm3"/>

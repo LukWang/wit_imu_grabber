@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="port1" default="/dev/rfcomm8"/>
+    <arg name="port1" default="/dev/rfcomm3"/>
 
     <node pkg="wit_imu_grabber" name="imu_1" type="grabber_time_stricted.py" args="$(arg port1)" output="screen">
         <!--node pkg="wit_imu_grabber" name="imu_1" type="grabber.py" args="$(arg port1)" output="screen"-->

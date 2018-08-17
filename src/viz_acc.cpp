@@ -42,9 +42,9 @@ int main(int argc, char** argv)
         end_point.y = Imu_g.linear_acceleration.y/10.0;
         end_point.z = Imu_g.linear_acceleration.z/10.0;
 
-        arrow.header.frame_id = "world";
+        arrow.header.frame_id = "human_base";
         arrow.header.stamp = Imu_g.header.stamp;
-        arrow.ns = "imu";
+        //arrow.ns =;
         arrow.id = 0;
         arrow.color.a = 1.0;
         arrow.color.r = 1.0;
